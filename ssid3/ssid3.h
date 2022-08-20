@@ -4,6 +4,9 @@
 #define LOG(fmt, ...)                                                   \
     fprintf(stdout, "[ssid3:%s] [%s:%d] : " fmt "\n", __FUNCTION__, __FILE__, __LINE__, \
             ##__VA_ARGS__)
+#define WARN(fmt, ...)                                                  \
+    fprintf(stdout, "[ssid3:%s] [%s:%d] : " fmt "\n", __FUNCTION__, __FILE__, __LINE__, \
+            ##__VA_ARGS__)
 
 typedef struct {
     size_t offset;

@@ -2,6 +2,8 @@
 #include <memory>
 #include <functional>
 
+#include <iconv.h>
+
 #include "ssid3.h"
 #include "myfile.h"
 #include "myid3base.h"
