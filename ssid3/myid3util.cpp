@@ -230,22 +230,17 @@ char *strcpy_hex(char *dest, const char *src) {
     return retval;
 }
 
-char *strcpy_charcode(char *dest, const char *src, const char *charcode) {
+char *strcpy_charcode(char *dest, const char *src, size_t src_len, const char *charcode) {
     if (strcasecmp(charcode, "ASCII") == 0 ||
         strcasecmp(charcode, "UTF-8") == 0) {
         return strcpy(dest, src);
     }
 
-    size_t src_len = strlen(src);
-    if(strcasecmp(charcode, "UTF-16") == 0) {
-        // search for "0x00 0x00"
-        while(1) {
-            auto additional_len = strlen(&src[src_len+1]);
-            if (additional_len == 0) {
-                break;
-            }
-            src_len += additional_len + 1;
-        }
+    if(memcmp(charcode, "UTF-16", 6) != 0) {
+        src_len = 1 + strlen(src);
+    } else {
+        // searching "\0\0" is difficult, for there exists the case "\0\0\0".
+        // so keep src_len
     }
 
     iconv_t ic = iconv_open("UTF-8", charcode);
@@ -295,21 +290,16 @@ bool is_maybe_ascii(const char *src) {
     return true;
 }
 
-bool is_maybe_charcode(const char *src, const char *charcode) {
+bool is_maybe_charcode(const char *src, size_t src_len, const char *charcode) {
     if (strcasecmp(charcode, "ASCII") == 0) {
         return is_maybe_ascii(src);
     }
 
-    size_t src_len = strlen(src);
-    if(strcasecmp(charcode, "UTF-16") == 0) {
-        // search for "0x00 0x00"
-        while(1) {
-            auto additional_len = strlen(&src[src_len+1]);
-            if (additional_len == 0) {
-                break;
-            }
-            src_len += additional_len + 1;
-        }
+    if(memcmp(charcode, "UTF-16", 6) != 0) {
+        src_len = 1 + strlen(src);
+    } else {
+        // searching "\0\0" is difficult, for there exists the case "\0\0\0".
+        // so keep src_len
     }
 
     iconv_t ic = iconv_open(charcode, charcode);
@@ -330,15 +320,15 @@ bool is_maybe_charcode(const char *src, const char *charcode) {
     return true;
 }
 
-bool detect_charcode(const char *src, char *charcode) {
+bool detect_charcode(const char *src, size_t src_len, char *charcode) {
     if (is_maybe_ascii(src)) {
         strcpy(charcode, "ASCII");
         return true;
     }
 
     const std::vector<const char*> code_table = {
-        "CP932",
         "UTF-8",
+        "CP932",
         "UTF-16",
 #if 0
         // It seems always success to convert from "ISO-8859-1" using iconv.
@@ -347,7 +337,7 @@ bool detect_charcode(const char *src, char *charcode) {
 #endif
     };
     for ( auto elem : code_table) {
-        if (is_maybe_charcode(src, elem)) {
+        if (is_maybe_charcode(src, src_len, elem)) {
             strcpy (charcode, elem);
             return true;
         }
@@ -368,11 +358,11 @@ char *strcpy_maybe_ascii(char *dest, const char *src) {
     return strcpy_hex(dest, src);
 }
 
-char *strcpy_maybe_charcode(char *dest, const char *src, const char *charcode) {
+char *strcpy_maybe_charcode(char *dest, const char *src, size_t src_len, const char *charcode) {
     if (strcasecmp(charcode, "ASCII") == 0) {
         return strcpy_maybe_ascii(dest, src);
-    } else if (is_maybe_charcode(src, charcode)) {
-        return strcpy_charcode(dest, src, charcode);
+    } else if (is_maybe_charcode(src, src_len, charcode)) {
+        return strcpy_charcode(dest, src, src_len, charcode);
     }
     return strcpy_hex(dest, src);
 }

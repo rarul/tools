@@ -10,9 +10,16 @@
 #include "myid3v2.h"
 
 static void SimplePrinter(const print_context_t& context) {
+#if 1
     printf("offset[%4zx]\tsize[%2zx]\tframe[%s]\tbody[%s]\n",
            context.offset, context.size,
            context.frame_name, context.frame_body);
+#else
+    printf("filename[%s]\toffset[%4zx]\tsize[%2zx]\tframe[%s]\tbody[%s]\n",
+           context.filename,
+           context.offset, context.size,
+           context.frame_name, context.frame_body);
+#endif
 }
 
 template<class T>
@@ -32,8 +39,8 @@ static void MyAnalysis(std::shared_ptr<MyFile> file) {
 static void do_file(const char *filename) {
     std::shared_ptr<MyFile> file = std::make_shared<MyFile>(filename);
     if (file->ptr != nullptr) {
-        MyAnalysis<MyID3V1>(file);
-        //MyAnalysis<MyID3V2>(file);
+        //MyAnalysis<MyID3V1>(file);
+        MyAnalysis<MyID3V2>(file);
     }
 }
 

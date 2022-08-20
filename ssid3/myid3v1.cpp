@@ -82,7 +82,7 @@ void MyID3V1::AnalyzeString(const std::function<void(const print_context_t&)> fu
         // So try 2 more times with clearing the tail of buffer.
         for(; i<=2; i++) {
             tag_buf[size-i] = 0;
-            if(MyID3Util::detect_charcode(tag_buf, charcode)) {
+            if(MyID3Util::detect_charcode(tag_buf, size+2-i, charcode)) {
                 int retlen = 0;
                 if (charcode[0] != '\0' && strcasecmp(charcode,"ASCII") != 0) {
                     char broken[32] = "";
@@ -91,7 +91,7 @@ void MyID3V1::AnalyzeString(const std::function<void(const print_context_t&)> fu
                     }
                     retlen = sprintf(print_buf, "%s{%s}", broken, charcode);
                 }
-                MyID3Util::strcpy_charcode(&print_buf[retlen], tag_buf, charcode);
+                MyID3Util::strcpy_charcode(&print_buf[retlen], tag_buf, size+2-i, charcode);
                 break;
             }
         }
