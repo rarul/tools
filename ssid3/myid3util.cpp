@@ -213,6 +213,15 @@ const char *genre_name(unsigned char genre_code) {
     return "(none)";
 }
 
+bool is_valid_frame_text(const char *text, size_t size) {
+    for(size_t i=0; i<size; i++) {
+        if (!isalnum(text[i])) {
+            return false;
+        }
+    }
+    return true;
+}
+
 char *strcpy_hex(char *dest, const char *src) {
     char *retval = dest;
     while (1) {

@@ -4,6 +4,7 @@
 namespace MyID3Util {
 
 const char *genre_name(unsigned char genre_code);
+bool is_valid_frame_text(const char *text, size_t size);
 char *strcpy_hex(char *dest, const char *src);
 char *strcpy_charcode(char *dest, const char *src, size_t src_len, const char *charcode);
 bool is_maybe_ascii(const char *src);

@@ -272,71 +272,67 @@ void MyID3V2::Analyze(const std::function<void(const print_context_t&)> func) {
     memset (buftext, 0, sizeof(buftext));
     print_context_t context {0, 0, buftext, print_buf, m_file->filename.c_str()};
     for (size_t thisoffset = m_header_size; thisoffset < m_total_size; ) {
-        size_t frame_size = 0;
         context.offset = thisoffset;
+        size_t header_size = 0;
+        size_t body_size = 0;
+        void(*frame_func)(char*,const char*,size_t) = nullptr;
+        size_t print_buf_len = 0;
+
         if (m_version == 2) {
             auto *frame = reinterpret_cast<const id3v2_frame_v2_t*>((const char*)m_file->ptr + context.offset);
-            auto body_size = ParseVerDependSize(&frame->size[0]);
-            frame_size = sizeof(*frame) + body_size;
-            memcpy(buftext, frame->text, sizeof(frame->text));
-            if (buftext[0] == '\0' && buftext[1] == '\0' &&
-                buftext[2] == '\0' && buftext[3] == '\0' ) {
+			if (!MyID3Util::is_valid_frame_text(frame->text, sizeof(frame->text))) {
                 break;
             }
+            header_size = sizeof(*frame);
+            body_size = ParseVerDependSize(&frame->size[0]);
+            memcpy(buftext, frame->text, sizeof(frame->text));
             auto elem = frame_entry_tbl_v2.find(buftext);
             if (elem != frame_entry_tbl_v2.end()) {
                 auto elep = elem->second;
-                int retlen = 0;
-#if 0
+# if 0
                 // add summary for tag
-                retlen = sprintf(print_buf, "{%s}", elep.name_desc);
-#endif
-                auto body_ptr = reinterpret_cast<const char*>(m_file->ptr) + context.offset + sizeof(*frame);
-				char decode_buf[body_size+1];
-				if (m_id3v2_header->flag & (1<<7)) {
-					// prepare temp buffer to store decoded unsynchronization data.
-					memset (decode_buf, 0, sizeof(decode_buf));
-					frame_size += DecodeUnsynchronizedBuf(body_ptr, body_size, decode_buf);
-					body_ptr = decode_buf;
-				}
-                elep.func (&print_buf[retlen], body_ptr, body_size);
-            } else {
-                strcpy(print_buf, "(unknown frame)(v2)");
+                print_buf_len = sprintf(print_buf, "{%s}", elep.name_desc);
+# endif
+                frame_func = elep.func;
             }
         } else {
             auto *frame = reinterpret_cast<const id3v2_frame_common_t*>((const char*)m_file->ptr + context.offset);
-            auto body_size = ParseVerDependSize(&frame->size[1]);
-            frame_size = sizeof(*frame) + body_size;
-            memcpy(buftext, frame->text, sizeof(frame->text));
-            if (buftext[0] == '\0' && buftext[1] == '\0' &&
-                buftext[2] == '\0' && buftext[3] == '\0' ) {
+			if (!MyID3Util::is_valid_frame_text(frame->text, sizeof(frame->text))) {
                 break;
             }
+            header_size = sizeof(*frame);
+            body_size = ParseVerDependSize(&frame->size[1]);
+            memcpy(buftext, frame->text, sizeof(frame->text));
             auto elem = frame_entry_tbl_common.find(buftext);
             if (elem != frame_entry_tbl_common.end()) {
                 auto elep = elem->second;
-                int retlen = 0;
 #if 0
-                retlen = sprintf(print_buf, "{%s}", elep.name_desc);
+                print_buf_len = sprintf(print_buf, "{%s}", elep.name_desc);
 #endif
-                auto body_ptr = reinterpret_cast<const char*>(m_file->ptr) + context.offset + sizeof(*frame);
-				char decode_buf[body_size+1];
-				if (m_id3v2_header->flag & (1<<7)) {
-					// prepare temp buffer to store decoded unsynchronization data.
-					memset (decode_buf, 0, sizeof(decode_buf));
-					frame_size += DecodeUnsynchronizedBuf(body_ptr, body_size, decode_buf);
-					body_ptr = decode_buf;
-				}
-                elep.func (&print_buf[retlen], body_ptr, body_size);
-            } else {
-                strcpy(print_buf, "(unknown frame)(common)");
+                frame_func = elep.func;
             }
         }
-        context.size = frame_size;
+
+        auto body_ptr = reinterpret_cast<const char*>(m_file->ptr) + context.offset + header_size;
+        char decode_buf[body_size+1];
+        size_t unsynchronized_extended_size = 0;
+        if (m_id3v2_header->flag & (1<<7)) {
+            // prepare temp buffer to store decoded unsynchronization data.
+            memset (decode_buf, 0, sizeof(decode_buf));
+            unsynchronized_extended_size = DecodeUnsynchronizedBuf(body_ptr, body_size, decode_buf);
+            body_ptr = decode_buf;
+        }
+        if (frame_func != nullptr) {
+            frame_func (&print_buf[print_buf_len], body_ptr, body_size);
+        } else {
+            strcpy(&print_buf[print_buf_len], "{UnknownFrame}");
+        }
+
+        context.size = header_size + body_size + unsynchronized_extended_size;
         func(context);
 
         // going to next loop
-        thisoffset += frame_size;
+        thisoffset += context.size;
     }
 
 }
