@@ -10,6 +10,8 @@
 #include "myid3v2.h"
 #include "myid3util.h"
 
+//#define UNSYNCH_DEBUG (1)
+
 typedef struct {
     const char *name_desc;
     void(*func)(char*,const char*,size_t);
@@ -272,6 +274,12 @@ void MyID3V2::Analyze(const std::function<void(const print_context_t&)> func) {
     char buftext[5];
     memset (buftext, 0, sizeof(buftext));
     print_context_t context {0, 0, buftext, print_buf, m_file->filename.c_str()};
+#if defined(UNSYNCH_DEBUG)
+    if (header_unsynch) {
+        sprintf(print_buf,"{FLAGS} header flag %02x",m_id3v2_header->flag);
+        func(context);
+    }
+#endif
     for (size_t thisoffset = m_header_size; thisoffset < m_total_size; ) {
         context.offset = thisoffset;
         size_t header_size = 0;
@@ -305,6 +313,12 @@ void MyID3V2::Analyze(const std::function<void(const print_context_t&)> func) {
             header_size = sizeof(*frame);
             body_size = ParseVerDependSize(&frame->size[1]);
             frame_unsynch = frame->flags[1] & (1<<ID3V2_FRAME_FLAG_UNSYNCH_BIT);
+#if defined(UNSYNCH_DEBUG)
+            if (frame_unsynch) {
+                print_buf_len = sprintf(print_buf, "{FLAGS %02x %02x}",
+                                        frame->flags[0],frame->flags[1]);
+            }
+#endif
             memcpy(buftext, frame->text, sizeof(frame->text));
             auto elem = frame_entry_tbl_common.find(buftext);
             if (elem != frame_entry_tbl_common.end()) {
