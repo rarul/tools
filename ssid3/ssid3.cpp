@@ -9,17 +9,19 @@
 #include "myid3v1.h"
 #include "myid3v2.h"
 
+static bool verbose_mode = false;
+
 static void SimplePrinter(const print_context_t& context) {
-#if 1
     printf("offset[%4zx]\tsize[%2zx]\tframe[%s]\tbody[%s]\n",
            context.offset, context.size,
            context.frame_name, context.frame_body);
-#else
+}
+
+static void VerbosePrinter(const print_context_t& context) {
     printf("filename[%s]\toffset[%4zx]\tsize[%2zx]\tframe[%s]\tbody[%s]\n",
            context.filename,
            context.offset, context.size,
            context.frame_name, context.frame_body);
-#endif
 }
 
 template<class T>
@@ -29,9 +31,13 @@ static void MyAnalysis(std::shared_ptr<MyFile> file) {
         return;
     }
 
-    printf("%s ########## %s\n", file->filename.c_str(), typeid(T).name());
-    ptr->Analyze(SimplePrinter);
-    printf("\n");
+    if (verbose_mode) {
+        ptr->Analyze(VerbosePrinter);
+    } else {
+        printf("%s ########## %s\n", file->filename.c_str(), typeid(T).name());
+        ptr->Analyze(SimplePrinter);
+        printf("\n");
+    }
 }
 
 
@@ -46,7 +52,21 @@ static void do_file(const char *filename) {
 
 
 int main(int argc, char *argv[]) {
-    for(auto i=1; i<argc; i++) {
+    int i = 1;
+    for(; i<argc; i++) {
+        if (argv[i][0] != '-') {
+            break;
+        }
+        switch (argv[i][1]) {
+            case 'v':
+                verbose_mode = true;
+                break;
+            default:
+                break;
+        }
+    }
+
+    for(; i<argc; i++) {
         do_file(argv[i]);
     }
     return 0;
