@@ -2,6 +2,13 @@
 #define _MYID3V2_H_
 #endif /* _MYID3V2_H_ */
 
+#define ID3V2_TRUNC_BIG_FRAME_SIZE (64*1024)
+
+#define ID3V2_HEADER_FLAG_UNSYNC_BIT (7)
+#define ID3V2_HEADER_FLAG_EXT_HEADER_BIT (6)
+#define ID3V2_HEADER_FLAG_EXPERIMENTAL_BIT (5)
+#define ID3V2_HEADEF_FLAG_FOOTER (4)
+
 typedef struct {
     char identify[3];
     char version[2];
@@ -12,6 +19,12 @@ typedef struct {
     unsigned char ext_flag_size;
     unsigned char ext_flags[16];
 } id3v2_header_t;
+
+#define ID3V2_FRAME_FLAG_GROUP_ID_BIT (6)
+#define ID3V2_FRAME_FLAG_COMPRESS_BIT (3)
+#define ID3V2_FRAME_FLAG_ENCRYPT_BIT  (2)
+#define ID3V2_FRAME_FLAG_UNSYNCH_BIT  (1)
+#define ID3V2_FRAME_FLAG_DATA_LEN_BIT (0)
 
 // for ID3v2 v2.2
 typedef struct {

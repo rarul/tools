@@ -142,7 +142,7 @@ size_t MyID3V2::ParseVerDependSize(const unsigned char *size) {
 
 size_t MyID3V2::ParseHeaderSize() {
     // If extended header is valid
-    if (m_id3v2_header->flag & (1<<6)) {
+    if (m_id3v2_header->flag & (1<<ID3V2_HEADER_FLAG_EXT_HEADER_BIT)) {
         return sizeof(id3v2_header_t) + ParseVerDependSize(&m_id3v2_header->ext_size[1]);
     }
     unsigned char *p = nullptr;
@@ -267,6 +267,7 @@ void MyID3V2::Analyze(const std::function<void(const print_context_t&)> func) {
         return;
     }
 
+    bool header_unsynch = m_id3v2_header->flag & (1<<ID3V2_HEADER_FLAG_UNSYNC_BIT);
     char print_buf[512];
     char buftext[5];
     memset (buftext, 0, sizeof(buftext));
@@ -277,6 +278,7 @@ void MyID3V2::Analyze(const std::function<void(const print_context_t&)> func) {
         size_t body_size = 0;
         void(*frame_func)(char*,const char*,size_t) = nullptr;
         size_t print_buf_len = 0;
+        bool frame_unsynch = false;
 
         if (m_version == 2) {
             auto *frame = reinterpret_cast<const id3v2_frame_v2_t*>((const char*)m_file->ptr + context.offset);
@@ -302,30 +304,39 @@ void MyID3V2::Analyze(const std::function<void(const print_context_t&)> func) {
             }
             header_size = sizeof(*frame);
             body_size = ParseVerDependSize(&frame->size[1]);
+            frame_unsynch = frame->flags[1] & (1<<ID3V2_FRAME_FLAG_UNSYNCH_BIT);
             memcpy(buftext, frame->text, sizeof(frame->text));
             auto elem = frame_entry_tbl_common.find(buftext);
             if (elem != frame_entry_tbl_common.end()) {
                 auto elep = elem->second;
-#if 0
+# if 0
+                // add summary for tag
                 print_buf_len = sprintf(print_buf, "{%s}", elep.name_desc);
 #endif
                 frame_func = elep.func;
             }
         }
 
+        // To avoid for parsing big frame, limit size for analyzing.
+        size_t trunc_body_size = body_size;
+        if (trunc_body_size > ID3V2_TRUNC_BIG_FRAME_SIZE) {
+            trunc_body_size = ID3V2_TRUNC_BIG_FRAME_SIZE;
+        }
+
+        // To decode unsynchronized case, prepare temp buf when decode is required.
         auto body_ptr = reinterpret_cast<const char*>(m_file->ptr) + context.offset + header_size;
-        char decode_buf[body_size+1];
+        char decode_buf[trunc_body_size+1];
         size_t unsynchronized_extended_size = 0;
-        if (m_id3v2_header->flag & (1<<7)) {
-            // prepare temp buffer to store decoded unsynchronization data.
+        if (header_unsynch || frame_unsynch) {
             memset (decode_buf, 0, sizeof(decode_buf));
-            unsynchronized_extended_size = DecodeUnsynchronizedBuf(body_ptr, body_size, decode_buf);
+            unsynchronized_extended_size = DecodeUnsynchronizedBuf(body_ptr, trunc_body_size, decode_buf);
             body_ptr = decode_buf;
         }
+
         if (frame_func != nullptr) {
-            frame_func (&print_buf[print_buf_len], body_ptr, body_size);
+            frame_func (&print_buf[print_buf_len], body_ptr, trunc_body_size);
         } else {
-            strcpy(&print_buf[print_buf_len], "{UnknownFrame}");
+            strcpy(&print_buf[print_buf_len], "{UNKNOWNFRAME}");
         }
 
         context.size = header_size + body_size + unsynchronized_extended_size;
