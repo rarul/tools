@@ -88,7 +88,7 @@ void MyID3V1::AnalyzeString(const std::function<void(const print_context_t&)> fu
                 if (charcode[0] != '\0' && strcasecmp(charcode,"ASCII") != 0) {
                     char broken[32] = "";
                     if (i >= 1) {
-                        strcpy(broken, "{HalfByteBroken}");
+                        strcpy(broken, "{HALFBYTEBROKEN}");
                     }
                     retlen = sprintf(print_buf, "%s{%s}", broken, charcode);
                 }
@@ -98,7 +98,7 @@ void MyID3V1::AnalyzeString(const std::function<void(const print_context_t&)> fu
         }
         if (i > 2) {
             // Case for cannot deteted the charcode
-            strcpy(print_buf, "{HEX}");
+            strcpy(print_buf, "{HEXBROKEN}");
             MyID3Util::strcpy_hex(&print_buf[strlen(print_buf)], tag_buf);
         }
     }
