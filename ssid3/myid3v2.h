@@ -46,7 +46,11 @@ public:
     static std::shared_ptr<MyID3V2> Create(std::shared_ptr<MyFile> file);
     void Analyze(const std::function<void(const print_context_t&)>) override;
     static void AnalyzeSimpleChar(char *out_buf, const char *ptr, size_t size);
+    static void AnalyzeStringWithEncode(char *out_buf, const char *ptr, size_t size, unsigned char enc);
     static void AnalyzeString(char *out_buf, const char *ptr, size_t size);
+    // for complex parse
+    static void AnalyzeUSLT(char *out_buf, const char *ptr, size_t size);
+    static void AnalyzeGEOB(char *out_buf, const char *ptr, size_t size);
 private:
     bool AnalyzeHeader(const std::function<void(const print_context_t&)> func);
     static size_t ParseSyncSafeSize(const unsigned char *size);

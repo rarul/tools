@@ -213,6 +213,23 @@ const char *genre_name(unsigned char genre_code) {
     return "(none)";
 }
 
+size_t char_length_by_byte(const char *text, unsigned char encode) {
+    switch (encode) {
+        case 1:
+        case 2:
+            for(size_t i=0; ; i+=2) {
+                if (text[i] == '\0' && text[i+1] == '\0') {
+                    return i+2;
+                }
+            }
+            break;
+        case 0:
+        case 3:
+        default:
+            return strlen(text)+1;
+    }
+}
+
 bool is_valid_frame_text(const char *text, size_t size) {
     for(size_t i=0; i<size; i++) {
         if (!isalnum(text[i])) {

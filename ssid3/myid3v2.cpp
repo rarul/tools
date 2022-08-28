@@ -34,7 +34,8 @@ static const std::unordered_map<std::string, id3v2_frame_entry_t> frame_entry_tb
     {"TDA", {"date", MyID3V2::AnalyzeString}},
     {"TIM", {"time", MyID3V2::AnalyzeString}},
     {"TKE", {"music key", MyID3V2::AnalyzeString}},
-    {"ULT", {"lyrics", MyID3V2::AnalyzeString}},
+    // complex part
+    {"ULT", {"lyrics", MyID3V2::AnalyzeUSLT}},
     // including binary data
     {"PIC", {"picture", MyID3V2::AnalyzeString}},
 };
@@ -48,7 +49,6 @@ static std::unordered_map<std::string, id3v2_frame_entry_t> frame_entry_tbl_comm
     {"TALB", {"album", MyID3V2::AnalyzeString}},
     {"TPOS", {"set of", MyID3V2::AnalyzeString}},
     {"TYER", {"year", MyID3V2::AnalyzeString}},
-    {"COMM", {"comment", MyID3V2::AnalyzeString}},
     {"TRCK", {"track", MyID3V2::AnalyzeString}},
     {"TCON", {"ctype", MyID3V2::AnalyzeString}},
     {"TCOP", {"copyright", MyID3V2::AnalyzeString}},
@@ -62,7 +62,6 @@ static std::unordered_map<std::string, id3v2_frame_entry_t> frame_entry_tbl_comm
     {"TXXX", {"user def", MyID3V2::AnalyzeString}},
     {"TDRC", {"rec time", MyID3V2::AnalyzeString}},
     {"TBPM", {"bpm", MyID3V2::AnalyzeString}},
-    {"USLT", {"lyrics", MyID3V2::AnalyzeString}},
     {"TEXT", {"writer", MyID3V2::AnalyzeString}},
     {"TDEN", {"enc time", MyID3V2::AnalyzeString}},
     {"TDTG", {"tag time", MyID3V2::AnalyzeString}},
@@ -86,7 +85,9 @@ static std::unordered_map<std::string, id3v2_frame_entry_t> frame_entry_tbl_comm
     {"WPUB", {"publish url", MyID3V2::AnalyzeSimpleChar}},
     // including binary data
     {"APIC", {"picture", MyID3V2::AnalyzeSimpleChar}},
-    {"GEOB", {"encapsul", MyID3V2::AnalyzeString}},
+    {"GEOB", {"encapsul", MyID3V2::AnalyzeGEOB}},
+    {"USLT", {"lyrics", MyID3V2::AnalyzeUSLT}},
+    {"COMM", {"comment", MyID3V2::AnalyzeUSLT}}, // format same as USLT
     // TOC binary data.
     {"MCDI", {"music cd id", MyID3V2::AnalyzeSimpleChar}},
     // iTunes specific ?
@@ -158,25 +159,21 @@ void MyID3V2::AnalyzeSimpleChar(char *out_buf, const char *ptr, size_t size) {
     MyID3Util::strcpy_maybe_ascii(out_buf, bufwork);
 }
 
-void MyID3V2::AnalyzeString(char *out_buf, const char *ptr, size_t size) {
+void MyID3V2::AnalyzeStringWithEncode(char *out_buf, const char *ptr, size_t size, unsigned char enc) {
     char charcode[16];
     int retlen = 0;
-
-    char bufwork[size+1];
-    memset (bufwork, 0, sizeof(bufwork));
-    memcpy (bufwork, ptr+1, size-1);
-
-    unsigned char enc_val = ptr[0];
-    switch (enc_val) {
+    char bufwork[size];
+    memcpy (bufwork, ptr, size);
+    switch (enc) {
         case 0x00:
             // ISO-8859-1
             retlen = sprintf(out_buf, "{ASCII}");
-            if (MyID3Util::detect_charcode(bufwork, size+1, charcode)) {
+            if (MyID3Util::detect_charcode(bufwork, size, charcode)) {
                 if (strcasecmp(charcode, "ASCII") == 0) {
-                    MyID3Util::strcpy_charcode(&out_buf[retlen], bufwork, size, charcode);
+                    MyID3Util::strcpy_charcode(&out_buf[retlen], bufwork, size-1, charcode);
                 } else {
                     sprintf(&out_buf[retlen], "{BROKEN}{%s]", charcode);
-                    MyID3Util::strcpy_charcode(&out_buf[strlen(out_buf)], bufwork, size+1, charcode);
+                    MyID3Util::strcpy_charcode(&out_buf[strlen(out_buf)], bufwork, size, charcode);
                 }
             } else {
                 strcpy(&out_buf[retlen], "{BROKEN}");
@@ -186,12 +183,12 @@ void MyID3V2::AnalyzeString(char *out_buf, const char *ptr, size_t size) {
         case 0x01:
             // UTF-16 LE with BOM
             retlen = sprintf(out_buf, "{UTF-16LE}");
-            if (MyID3Util::detect_charcode(bufwork, size+1, charcode)) {
+            if (MyID3Util::detect_charcode(bufwork, size, charcode)) {
                 if (strcasecmp(charcode, "UTF-16") == 0) {
-                    MyID3Util::strcpy_charcode(&out_buf[retlen], bufwork, size+1, charcode);
+                    MyID3Util::strcpy_charcode(&out_buf[retlen], bufwork, size, charcode);
                 } else {
                     sprintf(&out_buf[retlen], "{BROKEN}{%s]", charcode);
-                    MyID3Util::strcpy_charcode(&out_buf[strlen(out_buf)], bufwork, size+1, charcode);
+                    MyID3Util::strcpy_charcode(&out_buf[strlen(out_buf)], bufwork, size, charcode);
                 }
             } else {
                 strcpy(&out_buf[retlen], "{BROKEN}");
@@ -201,17 +198,17 @@ void MyID3V2::AnalyzeString(char *out_buf, const char *ptr, size_t size) {
         case 0x02:
             // UTF-16 BE without BOM. allowd version >= 4
             retlen = sprintf(out_buf, "{UTF-16BE}");
-            MyID3Util::strcpy_maybe_charcode(&out_buf[retlen], bufwork, size+1, "UTF-16BE");
+            MyID3Util::strcpy_maybe_charcode(&out_buf[retlen], bufwork, size, "UTF-16BE");
             break;
         case 0x03:
             // UTF-8. allowd version >= 4
             retlen = sprintf(out_buf, "{UTF-8}");
             if (MyID3Util::detect_charcode(bufwork, size, charcode)) {
                 if (strcasecmp(charcode, "UTF-8") == 0 || strcasecmp(charcode, "ASCII") == 0) {
-                    MyID3Util::strcpy_charcode(&out_buf[retlen], bufwork, size, charcode);
+                    MyID3Util::strcpy_charcode(&out_buf[retlen], bufwork, size-1, charcode);
                 } else {
                     sprintf(&out_buf[retlen], "{BROKEN}{%s]", charcode);
-                    MyID3Util::strcpy_charcode(&out_buf[strlen(out_buf)], bufwork, size+1, charcode);
+                    MyID3Util::strcpy_charcode(&out_buf[strlen(out_buf)], bufwork, size, charcode);
                 }
             } else {
                 strcpy(&out_buf[retlen], "{BROKEN}");
@@ -219,9 +216,78 @@ void MyID3V2::AnalyzeString(char *out_buf, const char *ptr, size_t size) {
             }
             break;
         default:
-            sprintf(out_buf, "(unknown enc) %02x", enc_val);
+            sprintf(out_buf, "(unknown enc) %02x", enc);
             break;
     }
+}
+
+void MyID3V2::AnalyzeString(char *out_buf, const char *ptr, size_t size) {
+    unsigned char enc_val = ptr[0];
+    AnalyzeStringWithEncode(out_buf, ptr+1, size-1, enc_val);
+}
+
+void MyID3V2::AnalyzeUSLT(char *out_buf, const char *ptr, size_t size) {
+    unsigned char enc_val = ptr[0];
+    size_t outlen = 0;
+
+    // Language
+    char lang[4];
+    memset (lang, 0, sizeof(lang));
+    memcpy (lang, ptr+1, 3);
+    MyID3Util::strcpy_maybe_ascii(out_buf, lang);
+    outlen = strlen(&out_buf[outlen]);
+
+    strcpy(&out_buf[outlen], "<>");
+    outlen += 2;
+
+    // Content descriptor
+    size_t inlen = 4;
+    if (inlen > size) { inlen = size; }
+    auto nextlen = MyID3Util::char_length_by_byte(ptr+inlen, enc_val);
+    if (inlen+nextlen > size) { nextlen = size - inlen; }
+    AnalyzeStringWithEncode(&out_buf[outlen], ptr+inlen, nextlen, enc_val);
+    outlen += strlen(&out_buf[outlen]);
+
+    strcpy(&out_buf[outlen], "<>");
+    outlen += 2;
+
+    // Lyrics/text full // text string
+    inlen += nextlen;
+    nextlen = MyID3Util::char_length_by_byte(ptr+inlen, enc_val);
+    if (inlen+nextlen > size) { nextlen = size - inlen; }
+    AnalyzeStringWithEncode(&out_buf[outlen], ptr+inlen, nextlen, enc_val);
+}
+
+void MyID3V2::AnalyzeGEOB(char *out_buf, const char *ptr, size_t size) {
+    unsigned char enc_val = ptr[0];
+    size_t outlen = 0;
+    size_t inlen = 1 + strlen(ptr+1);
+    if (inlen > size) { inlen = size; }
+
+    // MIME type
+    AnalyzeSimpleChar(&out_buf[outlen], ptr+1, inlen);
+    outlen += strlen(&out_buf[outlen]);
+
+    strcpy(&out_buf[outlen], "<>");
+    outlen += 2;
+
+    // Filename
+    auto nextlen = MyID3Util::char_length_by_byte(ptr+1+inlen, enc_val);
+    if (inlen+nextlen > size) { nextlen = size - inlen; }
+    AnalyzeStringWithEncode(&out_buf[outlen], ptr+1+inlen, nextlen, enc_val);
+    outlen += strlen(&out_buf[outlen]);
+
+    strcpy(&out_buf[outlen], "<>");
+    outlen += 2;
+
+    // Content description
+    inlen += nextlen;
+    nextlen = MyID3Util::char_length_by_byte(ptr+1+inlen, enc_val);
+    if (inlen+nextlen > size) { nextlen = size - inlen; }
+    AnalyzeStringWithEncode(&out_buf[outlen], ptr+1+inlen, nextlen, enc_val);
+
+    // Encapsulated object
+    // Skip to print binary data
 }
 
 bool MyID3V2::AnalyzeHeader(const std::function<void(const print_context_t&)> func) {
@@ -270,7 +336,7 @@ void MyID3V2::Analyze(const std::function<void(const print_context_t&)> func) {
     }
 
     bool header_unsynch = m_id3v2_header->flag & (1<<ID3V2_HEADER_FLAG_UNSYNC_BIT);
-    char print_buf[512];
+    char print_buf[ID3V2_TRUNC_BIG_FRAME_SIZE];
     char buftext[5];
     memset (buftext, 0, sizeof(buftext));
     print_context_t context {0, 0, buftext, print_buf, m_file->filename.c_str()};
