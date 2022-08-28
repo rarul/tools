@@ -2,6 +2,7 @@
 #include <cstring>
 #include <memory>
 #include <functional>
+#include <unordered_map>
 
 #include "ssid3.h"
 #include "myfile.h"

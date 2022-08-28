@@ -1,6 +1,7 @@
 #include <string>
 #include <cstring>
 #include <memory>
+#include <vector>
 #include <functional>
 
 #include "ssid3.h"
