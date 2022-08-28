@@ -38,6 +38,7 @@ private:
     bool AnalyzeHeader(const std::function<void(const print_context_t&)> func);
     static size_t ParseSyncSafeSize(const unsigned char *size);
     static size_t ParseDirectSize(const unsigned char *size);
+    size_t DecodeUnsynchronizedBuf(const char *inbuf, size_t size, char *outbuf);
     size_t ParseVerDependSize(const unsigned char *size);
     size_t ParseHeaderSize();
     id3v2_header_t *m_id3v2_header;
