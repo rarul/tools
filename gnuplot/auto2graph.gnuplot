@@ -8,25 +8,26 @@
 ### $ ./auto2graph.gnuplot seq.txt
 
 # output to PNG 640x640
-#set terminal png size 1280,800
-set terminal wxt size 1280,800
+set terminal png size 400,300
+#set terminal wxt size 400,300
 
 # output filename
-#set output "vmstat_sample.png"
+set output "hoge.png"
 
 # creating one data line
 #set size 1.0,0.5
 #set title "CPU usage"
-set xlabel "seq"
-set ylabel "value"
-#set yrange [0:100]
+set xlabel "sec" offset 15,3
+set ylabel "percent" offset 2.7,4
+set yrange [0:100]
 #set xdata time
 #set timefmt "%H:%M:%S"
 #set format x "%H:%M:%S"
 #set xtics rotate
 #set style fill transparent solid 0.5 noborder
-plot ARG1 using 0:1 title "data" with lines
-
-pause -1
+set key left top
+set lmargin at screen 0.12
+plot ARG1 using 1:2 title "avg5" with lines, ARG1 using 1:3 title "avg60" with lines
+#pause -1
 
 
